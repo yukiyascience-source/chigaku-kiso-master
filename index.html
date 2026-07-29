@@ -250,21 +250,17 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 const RELEASE_INFO={
   version:"1.3.4",
   date:"2026-07-29",
+  changes:[
+    "version.jsonによる最新版確認機能を追加",
+    "新しい公開版がある場合の通知を追加",
+    "画像と更新確認にキャッシュ対策を追加"
+  ],
   versionFile:"version.json"
 };
 
-// 更新情報はCHANGELOGの先頭に最新項目を追加して管理します。
-// バージョン番号・最終更新日・NEW表示・更新履歴は、すべてこのデータから自動生成されます。
+// RELEASE_INFOは、このHTML自身のバージョン情報です。
+// CHANGELOGには、過去のバージョン履歴だけを新しい順に保存します。
 const CHANGELOG=[
-  {
-    version:"1.3.4",
-    date:"2026-07-29",
-    changes:[
-      "version.jsonによる最新版確認機能を追加",
-      "新しい公開版がある場合の通知を追加",
-      "画像と更新確認にキャッシュ対策を追加"
-    ]
-  },
   {
     version:"1.3.3",
     date:"2026-07-29",
@@ -321,7 +317,7 @@ const CHANGELOG=[
   }
 ];
 
-const APP_INFO=CHANGELOG.find(entry=>entry.version===RELEASE_INFO.version)||CHANGELOG[0];
+const APP_INFO=RELEASE_INFO;
 const NEW_DISPLAY_DAYS=7;
 
 function formatUpdateDate(isoDate){
@@ -331,7 +327,8 @@ function formatUpdateDate(isoDate){
 
 function renderUpdateHistory(){
   const history=document.getElementById("updateHistory");
-  history.innerHTML=CHANGELOG.map(entry=>{
+  const entries=[RELEASE_INFO,...CHANGELOG];
+  history.innerHTML=entries.map(entry=>{
     const items=entry.changes.map(change=>`<li>${change}</li>`).join("");
     return `
       <div class="update-entry">
