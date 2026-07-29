@@ -126,6 +126,31 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
   text-align:center;
 }
 .new-badge.show{display:block}
+
+/* 新しい公開版が見つかったときだけ表示 */
+.version-alert{
+  display:none;
+  margin:12px 0 0;
+  padding:12px 14px;
+  border:1px solid #efcf63;
+  border-radius:14px;
+  background:#fff8d8;
+  color:var(--ink);
+  font-size:13px;
+  line-height:1.6;
+  text-align:center;
+}
+.version-alert.show{display:block}
+.version-alert button{
+  border:0;
+  border-radius:10px;
+  margin-left:6px;
+  padding:7px 11px;
+  background:var(--accent);
+  color:#fff;
+  font-weight:850;
+}
+
 .update-footer{
   margin:16px 0 4px;
   padding:10px 8px 4px;
@@ -169,8 +194,9 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <header><div class="brand">🌍 地学基礎マスター</div><div class="pill" id="topPill">一本道版</div></header>
 
 <section class="card" id="home">
-<img class="logo-banner" src="logo.png" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
+<img class="logo-banner" id="logoBanner" src="logo.png?v=1.3.4" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
 <div class="new-badge" id="newBadge" aria-label="新着更新"></div>
+<div class="version-alert" id="versionAlert" role="status" aria-live="polite"></div>
 <div class="today">
   <div class="today-top"><div class="today-icon" id="todayIcon">🌋</div><div><div class="eyebrow">今日のステージ</div><div class="today-title" id="todayTitle"></div><div class="small" id="todaySub"></div></div></div>
   <button class="primary" id="startCurrent">10問だけやってみる</button>
@@ -220,9 +246,25 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <div class="toast" id="toast"></div>
 
 <script>
+// 現在このHTMLに組み込まれている公開版
+const RELEASE_INFO={
+  version:"1.3.4",
+  date:"2026-07-29",
+  versionFile:"version.json"
+};
+
 // 更新情報はCHANGELOGの先頭に最新項目を追加して管理します。
 // バージョン番号・最終更新日・NEW表示・更新履歴は、すべてこのデータから自動生成されます。
 const CHANGELOG=[
+  {
+    version:"1.3.4",
+    date:"2026-07-29",
+    changes:[
+      "version.jsonによる最新版確認機能を追加",
+      "新しい公開版がある場合の通知を追加",
+      "画像と更新確認にキャッシュ対策を追加"
+    ]
+  },
   {
     version:"1.3.3",
     date:"2026-07-29",
@@ -279,7 +321,7 @@ const CHANGELOG=[
   }
 ];
 
-const APP_INFO=CHANGELOG[0];
+const APP_INFO=CHANGELOG.find(entry=>entry.version===RELEASE_INFO.version)||CHANGELOG[0];
 const NEW_DISPLAY_DAYS=7;
 
 function formatUpdateDate(isoDate){
@@ -297,6 +339,49 @@ function renderUpdateHistory(){
         <ul>${items}</ul>
       </div>`;
   }).join("");
+}
+
+
+function compareVersions(a,b){
+  const pa=String(a).split(".").map(n=>Number(n)||0);
+  const pb=String(b).split(".").map(n=>Number(n)||0);
+  const length=Math.max(pa.length,pb.length);
+  for(let i=0;i<length;i++){
+    const av=pa[i]||0;
+    const bv=pb[i]||0;
+    if(av>bv)return 1;
+    if(av<bv)return -1;
+  }
+  return 0;
+}
+
+function openLatestVersion(latestVersion){
+  const url=new URL(window.location.href);
+  url.searchParams.set("v",latestVersion);
+  window.location.replace(url.toString());
+}
+
+async function checkLatestVersion(){
+  try{
+    // 時刻を付け、古いversion.jsonがキャッシュから返されるのを防ぐ。
+    const versionUrl=`${RELEASE_INFO.versionFile}?t=${Date.now()}`;
+    const response=await fetch(versionUrl,{cache:"no-store"});
+    if(!response.ok)return;
+
+    const latest=await response.json();
+    if(!latest||!latest.version)return;
+
+    if(compareVersions(latest.version,RELEASE_INFO.version)>0){
+      const alert=document.getElementById("versionAlert");
+      const dateText=latest.date?`（${formatUpdateDate(latest.date)}）`:"";
+      alert.innerHTML=`新しいバージョン Ver.${latest.version}${dateText} が公開されています。<button type="button" id="openLatestButton">最新版を開く</button>`;
+      alert.classList.add("show");
+      document.getElementById("openLatestButton").addEventListener("click",()=>openLatestVersion(latest.version));
+    }
+  }catch(error){
+    // オフライン時やversion.jsonを取得できない場合でも、ゲーム本体はそのまま動かす。
+    console.info("最新版の確認をスキップしました。");
+  }
 }
 
 function setupUpdateInfo(){
@@ -445,6 +530,7 @@ $("continueBtn").onclick=()=>{const c=current();start(c.f,c.s)};
 $("again").onclick=()=>start(fieldIndex,stageIndex);
 $("toMap").onclick=()=>{renderMap();show("mapScreen")};
 setupUpdateInfo();
+checkLatestVersion();
 renderHome();
 </script>
 </body>
