@@ -180,32 +180,11 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 
 <footer class="update-footer" aria-label="更新情報">
   <div class="update-summary">
-    <span id="versionText">Ver.1.3.1</span>
-    <span>最終更新：<span id="updatedText">2026/7/29</span></span>
+    <span id="versionText"></span>
+    <span>最終更新：<span id="updatedText"></span></span>
   </div>
   <button class="update-toggle" id="updateToggle" type="button" aria-expanded="false" aria-controls="updateHistory">更新履歴を見る▼</button>
-  <div class="update-history hidden" id="updateHistory">
-    <div class="update-entry">
-      <div class="update-entry-head">Ver.1.3.1　2026/7/29</div>
-      <ul><li>更新情報と更新履歴をホーム画面だけに表示</li></ul>
-    </div>
-    <div class="update-entry">
-      <div class="update-entry-head">Ver.1.3.0　2026/7/28</div>
-      <ul><li>更新履歴機能を追加</li><li>更新後7日間のNEW表示を追加</li></ul>
-    </div>
-    <div class="update-entry">
-      <div class="update-entry-head">Ver.1.2.0　2026/7/26</div>
-      <ul><li>問題画面の余白を調整</li></ul>
-    </div>
-    <div class="update-entry">
-      <div class="update-entry-head">Ver.1.1.0　2026/7/26</div>
-      <ul><li>タイトルロゴをHTML内に埋め込み</li></ul>
-    </div>
-    <div class="update-entry">
-      <div class="update-entry-head">Ver.1.0.0　2026/7/26</div>
-      <ul><li>初公開</li></ul>
-    </div>
-  </div>
+  <div class="update-history hidden" id="updateHistory"></div>
 </footer>
 </section>
 
@@ -241,31 +220,92 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <div class="toast" id="toast"></div>
 
 <script>
-// 更新情報は、次回以降この2項目と更新履歴のHTMLを編集します。
-// 🆕表示には、更新履歴の最新項目（先頭の1件目）が自動的に使われます。
-const APP_VERSION="1.3.0";
-const LAST_UPDATED="2026-07-28";
+// 更新情報はCHANGELOGの先頭に最新項目を追加して管理します。
+// バージョン番号・最終更新日・NEW表示・更新履歴は、すべてこのデータから自動生成されます。
+const CHANGELOG=[
+  {
+    version:"1.3.2",
+    date:"2026-07-29",
+    changes:[
+      "CHANGELOG方式を正式採用",
+      "バージョン番号と最終更新日を自動表示",
+      "最新更新表示と更新履歴を自動生成"
+    ]
+  },
+  {
+    version:"1.3.1",
+    date:"2026-07-29",
+    changes:[
+      "更新情報と更新履歴をホーム画面だけに表示"
+    ]
+  },
+  {
+    version:"1.3.0",
+    date:"2026-07-28",
+    changes:[
+      "更新履歴機能を追加",
+      "更新後7日間のNEW表示を追加"
+    ]
+  },
+  {
+    version:"1.2.0",
+    date:"2026-07-26",
+    changes:[
+      "問題画面の余白を調整"
+    ]
+  },
+  {
+    version:"1.1.0",
+    date:"2026-07-26",
+    changes:[
+      "タイトルロゴをHTML内に埋め込み"
+    ]
+  },
+  {
+    version:"1.0.0",
+    date:"2026-07-26",
+    changes:[
+      "初公開"
+    ]
+  }
+];
+
+const APP_INFO=CHANGELOG[0];
 const NEW_DISPLAY_DAYS=7;
 
 function formatUpdateDate(isoDate){
   const [y,m,d]=isoDate.split("-").map(Number);
   return `${y}/${m}/${d}`;
 }
-function setupUpdateInfo(){
-  document.getElementById("versionText").textContent=`Ver.${APP_VERSION}`;
-  document.getElementById("updatedText").textContent=formatUpdateDate(LAST_UPDATED);
 
-  // 最終更新日の0:00から7日間だけ、説明文の下に更新内容を表示する。
-  const [y,m,d]=LAST_UPDATED.split("-").map(Number);
+function renderUpdateHistory(){
+  const history=document.getElementById("updateHistory");
+  history.innerHTML=CHANGELOG.map(entry=>{
+    const items=entry.changes.map(change=>`<li>${change}</li>`).join("");
+    return `
+      <div class="update-entry">
+        <div class="update-entry-head">Ver.${entry.version}　${formatUpdateDate(entry.date)}</div>
+        <ul>${items}</ul>
+      </div>`;
+  }).join("");
+}
+
+function setupUpdateInfo(){
+  document.getElementById("versionText").textContent=`Ver.${APP_INFO.version}`;
+  document.getElementById("updatedText").textContent=formatUpdateDate(APP_INFO.date);
+  renderUpdateHistory();
+
+  // 最新更新日の0:00から7日間だけ、説明文の下に最新項目を表示する。
+  const [y,m,d]=APP_INFO.date.split("-").map(Number);
   const updatedAt=new Date(y,m-1,d);
   const expiresAt=new Date(updatedAt);
   expiresAt.setDate(expiresAt.getDate()+NEW_DISPLAY_DAYS);
   const now=new Date();
+
   if(now>=updatedAt && now<expiresAt){
     const newBadge=document.getElementById("newBadge");
-    const latestHistoryItem=document.querySelector("#updateHistory .update-entry:first-child li");
-    const latestUpdateText=latestHistoryItem?latestHistoryItem.textContent.trim():"更新しました";
-    newBadge.textContent=`🆕 ${latestUpdateText}（${formatUpdateDate(LAST_UPDATED)}）`;
+    const latestUpdateText=APP_INFO.changes[0]||"更新しました";
+    newBadge.textContent=`🆕 ${latestUpdateText}（${formatUpdateDate(APP_INFO.date)}）`;
     newBadge.classList.add("show");
   }
 
