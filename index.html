@@ -246,21 +246,20 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <div class="toast" id="toast"></div>
 
 <script>
-// 現在このHTMLに組み込まれている公開版
-const RELEASE_INFO={
-  version:"1.3.4",
-  date:"2026-07-29",
-  changes:[
-    "version.jsonによる最新版確認機能を追加",
-    "新しい公開版がある場合の通知を追加",
-    "画像と更新確認にキャッシュ対策を追加"
-  ],
-  versionFile:"version.json"
+// =====================================================
+// リリース情報（必ずファイル先頭に置く）
+// ※ version.json と必ず一致させること
+// =====================================================
+const RELEASE_INFO = {
+  version: "1.3.4",
+  date: "2026-07-29",
+  message: "version.jsonによる最新版確認機能を追加"
 };
 
-// RELEASE_INFOは、このHTML自身のバージョン情報です。
-// CHANGELOGには、過去のバージョン履歴だけを新しい順に保存します。
-const CHANGELOG=[
+// =====================================================
+// 更新履歴
+// =====================================================
+const CHANGELOG = [
   {
     version:"1.3.3",
     date:"2026-07-29",
@@ -327,7 +326,14 @@ function formatUpdateDate(isoDate){
 
 function renderUpdateHistory(){
   const history=document.getElementById("updateHistory");
-  const entries=[RELEASE_INFO,...CHANGELOG];
+  const entries=[
+    {
+      version:RELEASE_INFO.version,
+      date:RELEASE_INFO.date,
+      changes:[RELEASE_INFO.message]
+    },
+    ...CHANGELOG
+  ];
   history.innerHTML=entries.map(entry=>{
     const items=entry.changes.map(change=>`<li>${change}</li>`).join("");
     return `
@@ -361,7 +367,7 @@ function openLatestVersion(latestVersion){
 async function checkLatestVersion(){
   try{
     // 時刻を付け、古いversion.jsonがキャッシュから返されるのを防ぐ。
-    const versionUrl=`${RELEASE_INFO.versionFile}?t=${Date.now()}`;
+    const versionUrl=`version.json?t=${Date.now()}`;
     const response=await fetch(versionUrl,{cache:"no-store"});
     if(!response.ok)return;
 
@@ -395,7 +401,7 @@ function setupUpdateInfo(){
 
   if(now>=updatedAt && now<expiresAt){
     const newBadge=document.getElementById("newBadge");
-    const latestUpdateText=APP_INFO.changes[0]||"更新しました";
+    const latestUpdateText=APP_INFO.message||"更新しました";
     newBadge.textContent=`🆕 ${latestUpdateText}（${formatUpdateDate(APP_INFO.date)}）`;
     newBadge.classList.add("show");
   }
