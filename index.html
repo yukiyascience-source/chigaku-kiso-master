@@ -187,6 +187,14 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 .update-entry ul{margin:4px 0 0;padding-left:1.4em;color:var(--sub)}
 .update-entry li{margin:2px 0}
 
+
+.mode-status{margin:8px 0 0;text-align:center;color:var(--sub);font-size:13px;font-weight:800}
+.mode-switch{display:flex;gap:8px;margin-top:12px}
+.mode-switch button{flex:1;border:1px solid var(--line);border-radius:12px;padding:9px 8px;background:#fff;color:var(--sub);font-weight:850}
+.mode-switch button.active{border-color:#8bb7b1;background:#edf8f5;color:#386f7d}
+.mode-switch button:disabled{opacity:.48;cursor:default}
+.mode-map-label{text-align:center;margin:-6px 0 12px;color:var(--sub);font-size:13px;font-weight:850}
+
 </style>
 </head>
 <body>
@@ -194,9 +202,16 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <header><div class="brand">🌍 地学基礎マスター</div><div class="pill" id="topPill">一本道版</div></header>
 
 <section class="card" id="home">
-<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.1" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
+<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.2" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
 <div class="new-badge" id="newBadge" aria-label="新着更新"></div>
 <div class="version-alert" id="versionAlert" role="status" aria-live="polite"></div>
+
+<div class="mode-status" id="homeModeStatus">🧭 冒険者モード</div>
+<div class="mode-switch" aria-label="モード選択">
+  <button type="button" id="modeAButton">🧭 冒険者</button>
+  <button type="button" id="modeMButton">🥋 師範</button>
+</div>
+
 <div class="today">
   <div class="today-top"><div class="today-icon" id="todayIcon">🌋</div><div><div class="eyebrow">今日のステージ</div><div class="today-title" id="todayTitle"></div><div class="small" id="todaySub"></div></div></div>
   <button class="primary" id="startCurrent">10問だけやってみる</button>
@@ -217,6 +232,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <section class="card hidden" id="mapScreen">
 <button class="back" id="mapBack">← 今日のステージへ</button>
 <div class="hero"><div class="hero-icon">🗺️</div><h1>ステージマップ</h1><p>見えている道を、少しずつ進みます。</p></div>
+<div class="mode-map-label" id="mapModeStatus"></div>
 <div class="map" id="map"></div>
 </section>
 
@@ -245,7 +261,8 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="questions.js"></script>
+<script src="questions_A.js"></script>
+<script src="questions_M.js"></script>
 
 <script>
 // =====================================================
@@ -253,15 +270,22 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 // ※ version.json と必ず一致させること
 // =====================================================
 const RELEASE_INFO = {
-  version: "1.4.1",
-  date: "2026-07-30",
-  message: "問題ID・Aパック・キーワードを問題データに追加"
+  version: "1.4.2",
+  date: "2026-08-04",
+  message: "師範モード（Mパック）150問を追加"
 };
 
 // =====================================================
 // 更新履歴
 // =====================================================
 const CHANGELOG = [
+  {
+    version:"1.4.1",
+    date:"2026-07-30",
+    changes:[
+      "問題ID・Aパック・キーワードを問題データに追加"
+    ]
+  },
   {
     version:"1.4.0",
     date:"2026-07-30",
@@ -433,20 +457,85 @@ function setupUpdateInfo(){
 }
 
 const PASS=7;
+const QUESTION_PACKS={A:QUESTION_PACK_A,M:QUESTION_PACK_M};
+let currentPack="A";
+let fields=QUESTION_PACKS.A.fields;
 let fieldIndex=0,stageIndex=0,questions=[],idx=0,score=0,streak=0,best=0,answered=false;
 const $=id=>document.getElementById(id);
+
 function show(id){["home","mapScreen","quiz","result"].forEach(x=>$(x).classList.toggle("hidden",x!==id));}
-function getProgress(){try{return JSON.parse(localStorage.getItem("geo_master_path_v1"))||{field:0,stage:0,scores:{}}}catch(e){return {field:0,stage:0,scores:{}}}}
-function saveProgress(p){localStorage.setItem("geo_master_path_v1",JSON.stringify(p));}
+
+function emptyPackProgress(){return {field:0,stage:0,scores:{},complete:false};}
+function getGameState(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("geo_master_packs_v1"));
+    if(saved&&saved.packs){
+      saved.packs.A=saved.packs.A||emptyPackProgress();
+      saved.packs.M=saved.packs.M||emptyPackProgress();
+      saved.unlocked=saved.unlocked||{A:true,M:false};
+      saved.unlocked.A=true;
+      return saved;
+    }
+  }catch(e){}
+  let legacy=null;
+  try{legacy=JSON.parse(localStorage.getItem("geo_master_path_v1"));}catch(e){}
+  return {
+    currentPack:"A",
+    unlocked:{A:true,M:false},
+    packs:{
+      A:legacy||emptyPackProgress(),
+      M:emptyPackProgress()
+    }
+  };
+}
+function saveGameState(state){
+  localStorage.setItem("geo_master_packs_v1",JSON.stringify(state));
+}
+function setPack(code){
+  const state=getGameState();
+  if(!state.unlocked[code]){
+    toast("冒険者モードの15ステージをクリアすると師範モードが開きます。");
+    return;
+  }
+  state.currentPack=code;
+  saveGameState(state);
+  currentPack=code;
+  fields=QUESTION_PACKS[code].fields;
+  renderHome();
+}
+function packInfo(){return QUESTION_PACKS[currentPack];}
+function getProgress(){return getGameState().packs[currentPack]||emptyPackProgress();}
+function saveProgress(progress){
+  const state=getGameState();
+  state.packs[currentPack]=progress;
+  state.currentPack=currentPack;
+  saveGameState(state);
+}
 function key(f,s){return f+"-"+s}
 function current(){
   const p=getProgress();
-  return {f:Math.min(p.field,fields.length-1),s:Math.min(p.stage,2),p};
+  return {f:Math.min(Number(p.field)||0,fields.length-1),s:Math.min(Number(p.stage)||0,2),p};
+}
+function updateModeUI(){
+  const state=getGameState();
+  const info=packInfo();
+  $("homeModeStatus").textContent=`${info.icon} ${info.displayName}モード`;
+  $("mapModeStatus").textContent=`${info.icon} ${info.displayName}モードのステージマップ`;
+  $("modeAButton").classList.toggle("active",currentPack==="A");
+  $("modeMButton").classList.toggle("active",currentPack==="M");
+  $("modeMButton").disabled=!state.unlocked.M;
+  $("modeMButton").textContent=state.unlocked.M?"🥋 師範":"🔒 師範";
 }
 function renderHome(){
+  const state=getGameState();
+  currentPack=state.currentPack&&state.unlocked[state.currentPack]?state.currentPack:"A";
+  fields=QUESTION_PACKS[currentPack].fields;
   const c=current(),f=fields[c.f],s=f.stages[c.s];
-  $("todayIcon").textContent=f.icon;$("todayTitle").textContent=f.name+" "+s.name;$("todaySub").textContent="クリア条件：10問中7問以上";
-  $("topPill").textContent=f.icon+" 現在地";
+  $("todayIcon").textContent=f.icon;
+  $("todayTitle").textContent=f.name+" "+s.name;
+  $("todaySub").textContent="クリア条件：10問中7問以上";
+  $("topPill").textContent=packInfo().icon+" "+packInfo().displayName;
+  updateModeUI();
 }
 function isUnlocked(fi,si){
   const c=current();
@@ -457,7 +546,7 @@ function isDone(fi,si){
 }
 function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2200)}
 function renderMap(){
-  const c=current();$("map").innerHTML="";
+  const c=current();updateModeUI();$("map").innerHTML="";
   fields.forEach((f,fi)=>{
     const fieldUnlocked=fi<=c.f;
     const row=document.createElement("div");row.className="field-row"+(fieldUnlocked?"":" locked");
@@ -489,28 +578,21 @@ function shuffleArray(items){
   return a;
 }
 function start(fi,si){
-  fieldIndex=fi;
-  stageIndex=si;
-
+  fieldIndex=fi;stageIndex=si;
   questions=shuffleArray(fields[fi].stages[si].questions).map(q=>{
-    const choices=shuffleArray(
-      q.choices.map((text,i)=>({text,correct:i===q.answer}))
-    );
-    return {
-      ...q,
-      choices:choices.map(item=>item.text),
-      answer:choices.findIndex(item=>item.correct)
-    };
+    const choices=shuffleArray(q.choices.map((text,i)=>({text,correct:i===q.answer})));
+    return {...q,choices:choices.map(item=>item.text),answer:choices.findIndex(item=>item.correct)};
   });
-
   idx=0;score=0;streak=0;best=0;
-  $("topPill").textContent=fields[fi].icon+" "+fields[fi].name;
-  show("quiz");
-  showQ();
+  $("topPill").textContent=packInfo().icon+" "+packInfo().displayName;
+  show("quiz");showQ();
 }
 function showQ(){
-  answered=false;const q=questions[idx];$("count").textContent=`第${idx+1}問 / 10問`;$("streak").textContent=streak;$("bar").style.width=(idx*10)+"%";
-  $("quizLabel").textContent=fields[fieldIndex].stages[stageIndex].name;$("qtext").textContent=q.question;$("choices").innerHTML="";
+  answered=false;const q=questions[idx];
+  $("count").textContent=`第${idx+1}問 / 10問`;
+  $("streak").textContent=streak;$("bar").style.width=(idx*10)+"%";
+  $("quizLabel").textContent=fields[fieldIndex].stages[stageIndex].name+"・"+packInfo().displayName;
+  $("qtext").textContent=q.question;$("choices").innerHTML="";
   q.choices.forEach((c,i)=>{const b=document.createElement("button");b.className="choice";b.textContent=String.fromCharCode(65+i)+". "+c;b.onclick=()=>answer(i);$("choices").appendChild(b);});
   $("feedback").className="feedback hidden";$("next").classList.add("hidden");
 }
@@ -519,23 +601,45 @@ function answer(sel){
   btns.forEach((b,i)=>{b.disabled=true;if(i===q.answer)b.classList.add("correct");if(i===sel&&sel!==q.answer)b.classList.add("wrong");});
   const ok=sel===q.answer;if(ok){score++;streak++;best=Math.max(best,streak)}else streak=0;
   $("streak").textContent=streak;$("bar").style.width=((idx+1)*10)+"%";
-  $("feedback").className="feedback "+(ok?"good":"bad");$("feedback").innerHTML=`<strong>${ok?"正解！":"おしい！ 正解は「"+q.choices[q.answer]+"」"}</strong>${q.explanation}`;
+  $("feedback").className="feedback "+(ok?"good":"bad");
+  $("feedback").innerHTML=`<strong>${ok?"正解！":"おしい！ 正解は「"+q.choices[q.answer]+"」"}</strong>${q.explanation}`;
   $("next").textContent=idx===9?"結果を見る":"次の問題へ";$("next").classList.remove("hidden");
 }
 function finish(){
   let rank="C",icon="🌱",msg="今日はここまででも大丈夫。もう一度ならすぐ挑戦できます。";
   if(score===10){rank="S";icon="🏆";msg="全問正解です！"}else if(score>=8){rank="A";icon="🌟";msg="クリアです。次の道が開きました！"}else if(score>=PASS){rank="B";icon="🔓";msg="クリアです。次の道が開きました！"}
-  const p=getProgress(),k=key(fieldIndex,stageIndex),old=Number(p.scores[k]||0);p.scores[k]=Math.max(old,score);
-  let unlockedText="",advanced=false;
+  const p=getProgress(),k=key(fieldIndex,stageIndex),old=Number(p.scores[k]||0);
+  p.scores[k]=Math.max(old,score);
+  let unlockedText="",advanced=false,packCompleted=false;
   if(score>=PASS && fieldIndex===p.field && stageIndex===p.stage){
-    if(stageIndex<2){p.stage++;unlockedText=fields[fieldIndex].stages[p.stage].name+" が解放されました。";advanced=true;}
-    else if(fieldIndex<fields.length-1){p.field++;p.stage=0;unlockedText=fields[p.field].name+"フィールドが解放されました。";advanced=true;}
-    else{unlockedText="全フィールドを制覇しました！";advanced=true;}
+    if(stageIndex<2){
+      p.stage++;unlockedText=fields[fieldIndex].stages[p.stage].name+" が解放されました。";advanced=true;
+    }else if(fieldIndex<fields.length-1){
+      p.field++;p.stage=0;unlockedText=fields[p.field].name+"フィールドが解放されました。";advanced=true;
+    }else{
+      p.complete=true;packCompleted=true;advanced=true;
+      if(currentPack==="A"){
+        const state=getGameState();
+        state.packs.A=p;
+        state.unlocked.M=true;
+        state.currentPack="M";
+        saveGameState(state);
+        unlockedText="冒険者モードを制覇しました！ 師範モードが解放されました。";
+      }else{
+        saveProgress(p);
+        unlockedText="師範モード15ステージを制覇しました！ 神モードは次回の更新で追加予定です。";
+      }
+    }
   }
-  saveProgress(p);
-  $("resultIcon").textContent=icon;$("resultTitle").textContent=fields[fieldIndex].name+" 結果";$("score").textContent=(score*10)+"点";$("message").textContent=msg;$("correct").textContent=score;$("best").textContent=best;$("rank").textContent=rank;
-  $("unlockBox").classList.toggle("hidden",!advanced);$("unlockTitle").textContent=advanced?"新しい道が開きました！":"";$("unlockText").textContent=unlockedText;
-  $("continueBtn").textContent=score>=PASS?"つぎの10問へ":"同じ10問にもう一度挑戦";
+  if(!packCompleted)saveProgress(p);
+  $("resultIcon").textContent=packCompleted?"🎊":icon;
+  $("resultTitle").textContent=packCompleted?packInfo().displayName+"モード クリア！":fields[fieldIndex].name+" 結果";
+  $("score").textContent=(score*10)+"点";$("message").textContent=msg;
+  $("correct").textContent=score;$("best").textContent=best;$("rank").textContent=rank;
+  $("unlockBox").classList.toggle("hidden",!advanced);
+  $("unlockTitle").textContent=advanced?(packCompleted?"モード制覇！":"新しい道が開きました！"):"";
+  $("unlockText").textContent=unlockedText;
+  $("continueBtn").textContent=packCompleted&&currentPack==="A"?"師範モードへ進む":score>=PASS?"つぎの10問へ":"同じ10問にもう一度挑戦";
   renderHome();show("result");
 }
 $("next").onclick=()=>{idx++;idx<10?showQ():finish()};
@@ -546,6 +650,8 @@ $("quizBack").onclick=()=>{renderHome();show("home")};
 $("continueBtn").onclick=()=>{const c=current();start(c.f,c.s)};
 $("again").onclick=()=>start(fieldIndex,stageIndex);
 $("toMap").onclick=()=>{renderMap();show("mapScreen")};
+$("modeAButton").onclick=()=>setPack("A");
+$("modeMButton").onclick=()=>setPack("M");
 setupUpdateInfo();
 checkLatestVersion();
 renderHome();
