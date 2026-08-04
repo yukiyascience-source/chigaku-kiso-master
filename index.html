@@ -202,7 +202,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <header><div class="brand">🌍 地学基礎マスター</div><div class="pill" id="topPill">一本道版</div></header>
 
 <section class="card" id="home">
-<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.2" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
+<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.3" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
 <div class="new-badge" id="newBadge" aria-label="新着更新"></div>
 <div class="version-alert" id="versionAlert" role="status" aria-live="polite"></div>
 
@@ -210,6 +210,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 <div class="mode-switch" aria-label="モード選択">
   <button type="button" id="modeAButton">🧭 冒険者</button>
   <button type="button" id="modeMButton">🥋 師範</button>
+  <button type="button" id="modeGButton">👑 神</button>
 </div>
 
 <div class="today">
@@ -263,6 +264,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 
 <script src="questions_A.js"></script>
 <script src="questions_M.js"></script>
+<script src="questions_G.js"></script>
 
 <script>
 // =====================================================
@@ -270,15 +272,22 @@ header{display:flex;justify-content:space-between;align-items:center;padding:8px
 // ※ version.json と必ず一致させること
 // =====================================================
 const RELEASE_INFO = {
-  version: "1.4.2",
+  version: "1.4.3",
   date: "2026-08-04",
-  message: "師範モード（Mパック）150問を追加"
+  message: "神モード（Gパック）150問を追加"
 };
 
 // =====================================================
 // 更新履歴
 // =====================================================
 const CHANGELOG = [
+  {
+    version:"1.4.2",
+    date:"2026-08-04",
+    changes:[
+      "師範モード（Mパック）150問を追加"
+    ]
+  },
   {
     version:"1.4.1",
     date:"2026-07-30",
@@ -457,7 +466,7 @@ function setupUpdateInfo(){
 }
 
 const PASS=7;
-const QUESTION_PACKS={A:QUESTION_PACK_A,M:QUESTION_PACK_M};
+const QUESTION_PACKS={A:QUESTION_PACK_A,M:QUESTION_PACK_M,G:QUESTION_PACK_G};
 let currentPack="A";
 let fields=QUESTION_PACKS.A.fields;
 let fieldIndex=0,stageIndex=0,questions=[],idx=0,score=0,streak=0,best=0,answered=false;
@@ -472,8 +481,11 @@ function getGameState(){
     if(saved&&saved.packs){
       saved.packs.A=saved.packs.A||emptyPackProgress();
       saved.packs.M=saved.packs.M||emptyPackProgress();
-      saved.unlocked=saved.unlocked||{A:true,M:false};
+      saved.packs.G=saved.packs.G||emptyPackProgress();
+      saved.unlocked=saved.unlocked||{A:true,M:false,G:false};
       saved.unlocked.A=true;
+      saved.unlocked.M=Boolean(saved.unlocked.M);
+      saved.unlocked.G=Boolean(saved.unlocked.G);
       return saved;
     }
   }catch(e){}
@@ -481,20 +493,26 @@ function getGameState(){
   try{legacy=JSON.parse(localStorage.getItem("geo_master_path_v1"));}catch(e){}
   return {
     currentPack:"A",
-    unlocked:{A:true,M:false},
+    unlocked:{A:true,M:false,G:false},
     packs:{
       A:legacy||emptyPackProgress(),
-      M:emptyPackProgress()
+      M:emptyPackProgress(),
+      G:emptyPackProgress()
     }
   };
 }
 function saveGameState(state){
   localStorage.setItem("geo_master_packs_v1",JSON.stringify(state));
 }
+function lockedMessage(code){
+  if(code==="M")return "冒険者モードの15ステージをクリアすると師範モードが開きます。";
+  if(code==="G")return "師範モードの15ステージをクリアすると神モードが開きます。";
+  return "このモードはまだ解放されていません。";
+}
 function setPack(code){
   const state=getGameState();
   if(!state.unlocked[code]){
-    toast("冒険者モードの15ステージをクリアすると師範モードが開きます。");
+    toast(lockedMessage(code));
     return;
   }
   state.currentPack=code;
@@ -521,10 +539,16 @@ function updateModeUI(){
   const info=packInfo();
   $("homeModeStatus").textContent=`${info.icon} ${info.displayName}モード`;
   $("mapModeStatus").textContent=`${info.icon} ${info.displayName}モードのステージマップ`;
-  $("modeAButton").classList.toggle("active",currentPack==="A");
-  $("modeMButton").classList.toggle("active",currentPack==="M");
-  $("modeMButton").disabled=!state.unlocked.M;
+
+  ["A","M","G"].forEach(code=>{
+    const button=$("mode"+code+"Button");
+    button.classList.toggle("active",currentPack===code);
+    button.disabled=!state.unlocked[code];
+  });
+
+  $("modeAButton").textContent="🧭 冒険者";
   $("modeMButton").textContent=state.unlocked.M?"🥋 師範":"🔒 師範";
+  $("modeGButton").textContent=state.unlocked.G?"👑 神":"🔒 神";
 }
 function renderHome(){
   const state=getGameState();
@@ -608,9 +632,12 @@ function answer(sel){
 function finish(){
   let rank="C",icon="🌱",msg="今日はここまででも大丈夫。もう一度ならすぐ挑戦できます。";
   if(score===10){rank="S";icon="🏆";msg="全問正解です！"}else if(score>=8){rank="A";icon="🌟";msg="クリアです。次の道が開きました！"}else if(score>=PASS){rank="B";icon="🔓";msg="クリアです。次の道が開きました！"}
+
+  const completedPack=currentPack;
   const p=getProgress(),k=key(fieldIndex,stageIndex),old=Number(p.scores[k]||0);
   p.scores[k]=Math.max(old,score);
-  let unlockedText="",advanced=false,packCompleted=false;
+  let unlockedText="",advanced=false,packCompleted=false,nextPack=null;
+
   if(score>=PASS && fieldIndex===p.field && stageIndex===p.stage){
     if(stageIndex<2){
       p.stage++;unlockedText=fields[fieldIndex].stages[p.stage].name+" が解放されました。";advanced=true;
@@ -618,28 +645,46 @@ function finish(){
       p.field++;p.stage=0;unlockedText=fields[p.field].name+"フィールドが解放されました。";advanced=true;
     }else{
       p.complete=true;packCompleted=true;advanced=true;
-      if(currentPack==="A"){
-        const state=getGameState();
-        state.packs.A=p;
+      const state=getGameState();
+      state.packs[completedPack]=p;
+
+      if(completedPack==="A"){
         state.unlocked.M=true;
         state.currentPack="M";
-        saveGameState(state);
+        nextPack="M";
         unlockedText="冒険者モードを制覇しました！ 師範モードが解放されました。";
+      }else if(completedPack==="M"){
+        state.unlocked.G=true;
+        state.currentPack="G";
+        nextPack="G";
+        unlockedText="師範モードを制覇しました！ 神モードが解放されました。";
       }else{
-        saveProgress(p);
-        unlockedText="師範モード15ステージを制覇しました！ 神モードは次回の更新で追加予定です。";
+        state.currentPack="G";
+        unlockedText="神モードを制覇しました！ 全45ステージ完全制覇です。";
       }
+      saveGameState(state);
     }
   }
+
   if(!packCompleted)saveProgress(p);
-  $("resultIcon").textContent=packCompleted?"🎊":icon;
-  $("resultTitle").textContent=packCompleted?packInfo().displayName+"モード クリア！":fields[fieldIndex].name+" 結果";
+
+  const completedInfo=QUESTION_PACKS[completedPack];
+  $("resultIcon").textContent=packCompleted?(completedPack==="G"?"👑":"🎊"):icon;
+  $("resultTitle").textContent=packCompleted?completedInfo.displayName+"モード クリア！":fields[fieldIndex].name+" 結果";
   $("score").textContent=(score*10)+"点";$("message").textContent=msg;
   $("correct").textContent=score;$("best").textContent=best;$("rank").textContent=rank;
   $("unlockBox").classList.toggle("hidden",!advanced);
-  $("unlockTitle").textContent=advanced?(packCompleted?"モード制覇！":"新しい道が開きました！"):"";
+  $("unlockTitle").textContent=advanced?(packCompleted?(completedPack==="G"?"全モード制覇！":"モード制覇！"):"新しい道が開きました！"):"";
   $("unlockText").textContent=unlockedText;
-  $("continueBtn").textContent=packCompleted&&currentPack==="A"?"師範モードへ進む":score>=PASS?"つぎの10問へ":"同じ10問にもう一度挑戦";
+
+  if(nextPack){
+    $("continueBtn").textContent=QUESTION_PACKS[nextPack].displayName+"モードへ進む";
+  }else if(packCompleted&&completedPack==="G"){
+    $("continueBtn").textContent="神モードのステージマップを見る";
+  }else{
+    $("continueBtn").textContent=score>=PASS?"つぎの10問へ":"同じ10問にもう一度挑戦";
+  }
+
   renderHome();show("result");
 }
 $("next").onclick=()=>{idx++;idx<10?showQ():finish()};
@@ -647,11 +692,16 @@ $("startCurrent").onclick=()=>{const c=current();start(c.f,c.s)};
 $("openMap").onclick=()=>{renderMap();show("mapScreen")};
 $("mapBack").onclick=()=>{renderHome();show("home")};
 $("quizBack").onclick=()=>{renderHome();show("home")};
-$("continueBtn").onclick=()=>{const c=current();start(c.f,c.s)};
+$("continueBtn").onclick=()=>{
+  const p=getProgress();
+  if(p.complete){renderMap();show("mapScreen");return;}
+  const c=current();start(c.f,c.s);
+};
 $("again").onclick=()=>start(fieldIndex,stageIndex);
 $("toMap").onclick=()=>{renderMap();show("mapScreen")};
 $("modeAButton").onclick=()=>setPack("A");
 $("modeMButton").onclick=()=>setPack("M");
+$("modeGButton").onclick=()=>setPack("G");
 setupUpdateInfo();
 checkLatestVersion();
 renderHome();
