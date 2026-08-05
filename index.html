@@ -427,6 +427,34 @@ body.mode-G .stage-node.locked{
   body.mode-G::before{background-size:34px 34px,56px 56px}
 }
 
+
+/* Ver.1.4.5 ホーム画面のモード別配色統一 */
+body.mode-A .primary{background:linear-gradient(135deg,#477f8d,#5da89c);box-shadow:0 8px 20px rgba(71,127,141,.22)}
+body.mode-A .secondary{color:#386f7d;background:#e8f3f2}
+body.mode-A .today{border-color:#8bb7b1;background:linear-gradient(160deg,#fff,#f2faf8)}
+body.mode-A .back,body.mode-A .update-toggle{color:#3e7c88}
+body.mode-A .progress>div{background:linear-gradient(90deg,#4c8895,#77b8ae)}
+body.mode-A .result-score{color:#477f8d}
+
+body.mode-M .primary{background:linear-gradient(135deg,#8a6545,#b07a4f);box-shadow:0 8px 20px rgba(138,101,69,.24)}
+body.mode-M .secondary{color:#7a5133;background:#f3e5d5}
+body.mode-M .today{border-color:#c79668;background:linear-gradient(160deg,#fffdf9,#f8ecde)}
+body.mode-M .back,body.mode-M .update-toggle{color:#8a6545}
+body.mode-M .progress>div{background:linear-gradient(90deg,#8a6545,#c79567)}
+body.mode-M .result-score{color:#8a6545}
+body.mode-M .version-alert button{background:#8a6545}
+
+body.mode-G .primary{background:linear-gradient(135deg,#57417f,#8066bd);box-shadow:0 8px 22px rgba(87,65,127,.32)}
+body.mode-G .secondary{color:#5f478e;background:#eee9fa}
+body.mode-G .today{border-color:#9b86ca;background:linear-gradient(160deg,#fff,#f1ecff);box-shadow:0 10px 28px rgba(91,67,143,.12)}
+body.mode-G .back,body.mode-G .update-toggle{color:#7059a6}
+body.mode-G .progress>div{background:linear-gradient(90deg,#5d468b,#9b81d1)}
+body.mode-G .result-score{color:#7059a6}
+body.mode-G .version-alert button{background:#7059a6}
+
+.primary,.secondary,.today,.back,.update-toggle,.progress>div,.result-score,.version-alert button{
+transition:background .45s ease,border-color .45s ease,color .35s ease,box-shadow .45s ease}
+
 </style>
 </head>
 <body>
@@ -434,7 +462,7 @@ body.mode-G .stage-node.locked{
 <header><div class="brand">🌍 地学基礎マスター</div><div class="pill" id="topPill">一本道版</div></header>
 
 <section class="card" id="home">
-<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.4" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
+<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.5" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
 <div class="new-badge" id="newBadge" aria-label="新着更新"></div>
 <div class="version-alert" id="versionAlert" role="status" aria-live="polite"></div>
 
@@ -521,8 +549,8 @@ body.mode-G .stage-node.locked{
 <script src="questions_A.js"></script>
 <script src="questions_M.js"></script>
 <script src="questions_G.js"></script>
-<script src="modes.js?v=1.4.4"></script>
-<script src="effects.js?v=1.4.4"></script>
+<script src="modes.js?v=1.4.5"></script>
+<script src="effects.js?v=1.4.5"></script>
 
 <script>
 // =====================================================
@@ -530,15 +558,20 @@ body.mode-G .stage-node.locked{
 // ※ version.json と必ず一致させること
 // =====================================================
 const RELEASE_INFO = {
-  version: "1.4.4",
+  version: "1.4.5",
   date: "2026-08-05",
-  message: "モード別表示・背景・制覇演出を追加"
+  message: "ホーム画面の配色をモード別に統一"
 };
 
 // =====================================================
 // 更新履歴
 // =====================================================
 const CHANGELOG = [
+  {
+    version:"1.4.4",
+    date:"2026-08-05",
+    changes:["モード別表示・背景・ステージマップ演出・制覇演出を追加"]
+  },
   {
     version:"1.4.3",
     date:"2026-08-04",
