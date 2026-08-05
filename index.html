@@ -524,7 +524,7 @@ body.mode-G .feedback.bad strong{
 <header><div class="brand">🌍 地学基礎マスター</div><div class="pill" id="topPill">一本道版</div></header>
 
 <section class="card" id="home">
-<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.7" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
+<img class="logo-banner" id="logoBanner" src="logo.png?v=1.4.8" alt="地学基礎マスター"><p class="home-copy">10問ずつ、少しずつ進める地学ゲーム</p>
 <div class="new-badge" id="newBadge" aria-label="新着更新"></div>
 <div class="version-alert" id="versionAlert" role="status" aria-live="polite"></div>
 
@@ -611,8 +611,8 @@ body.mode-G .feedback.bad strong{
 <script src="questions_A.js"></script>
 <script src="questions_M.js"></script>
 <script src="questions_G.js"></script>
-<script src="modes.js?v=1.4.7"></script>
-<script src="effects.js?v=1.4.7"></script>
+<script src="modes.js?v=1.4.8"></script>
+<script src="effects.js?v=1.4.8"></script>
 
 <script>
 // =====================================================
@@ -620,15 +620,22 @@ body.mode-G .feedback.bad strong{
 // ※ version.json と必ず一致させること
 // =====================================================
 const RELEASE_INFO = {
-  version: "1.4.7",
+  version: "1.4.8",
   date: "2026-08-05",
-  message: "問題画面の正解表示をモード別配色に統一"
+  message: "モード制覇時の切替タイミングを修正"
 };
 
 // =====================================================
 // 更新履歴
 // =====================================================
 const CHANGELOG = [
+  {
+    version:"1.4.7",
+    date:"2026-08-05",
+    changes:[
+      "問題画面の正解表示をモード別配色に統一"
+    ]
+  },
   {
     version:"1.4.6",
     date:"2026-08-05",
@@ -846,6 +853,7 @@ let fields=QUESTION_PACKS.A.fields;
 let fieldIndex=0,stageIndex=0,questions=[],idx=0,score=0,streak=0,best=0,answered=false;
 let pendingModeClear=null;
 let modeClearDestination="home";
+let modeClearNextPack=null;
 const $=id=>document.getElementById(id);
 
 function show(id){["home","mapScreen","quiz","result"].forEach(x=>$(x).classList.toggle("hidden",x!==id));}
@@ -1050,12 +1058,10 @@ function finish(){
 
       if(completedPack==="A"){
         state.unlocked.M=true;
-        state.currentPack="M";
         nextPack="M";
         unlockedText="冒険者モードを制覇しました！ 師範モードが解放されました。";
       }else if(completedPack==="M"){
         state.unlocked.G=true;
-        state.currentPack="G";
         nextPack="G";
         unlockedText="師範モードを制覇しました！ 神モードが解放されました。";
       }else{
@@ -1103,6 +1109,7 @@ $("continueBtn").onclick=()=>{
   if(pendingModeClear){
     const clearInfo=pendingModeClear;
     pendingModeClear=null;
+    modeClearNextPack=clearInfo.nextPack||null;
     modeClearDestination=clearInfo.nextPack?"home":"map";
     playModeClearEffect(clearInfo.code,{
       message:clearInfo.message,
@@ -1127,7 +1134,12 @@ $("mapModeMButton").onclick=()=>setPack("M",true);
 $("mapModeGButton").onclick=()=>setPack("G",true);
 $("modeClearAction").onclick=()=>{
   closeModeClearEffect();
-  if(modeClearDestination==="map"){
+  if(modeClearNextPack){
+    const nextPack=modeClearNextPack;
+    modeClearNextPack=null;
+    setPack(nextPack);
+    show("home");
+  }else if(modeClearDestination==="map"){
     renderMap();
     show("mapScreen");
   }else{
